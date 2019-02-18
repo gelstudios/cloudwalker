@@ -25,7 +25,7 @@ Example: `curl -d "shoeIds[]=1" -d "shoeIds[]=2" -d "color=blue" api.iot.shoes`
   * **Code**: `202 Accepted`
   * **Example**:
     ```json
-    {"4":"color updated","3":"color updated"}
+    {"1":"color updated","2":"color updated"}
     ```
 * **Error Response**:
   * **Code**: `400 Bad Request`
