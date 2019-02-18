@@ -31,11 +31,10 @@ function updateShoe(id, color) {
 app.get('/', async function (req, res) {
   try {
     const shoeIds = await getShoeIds();
+    res.send(`Available shoe Ids: ${shoeIds.join(', ')}`);
   } catch (e) {
     next(e);
   }
-
-  res.send(`Available shoe Ids: ${shoeIds.join(', ')}`);
 });
 
 // change the color of one or more shoes
