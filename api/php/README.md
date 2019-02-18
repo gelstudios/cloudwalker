@@ -1,4 +1,4 @@
-PHP implementation of the CloudWalker API.
+PHP implementation of the cloudwalker API.
 
 **Requires:** PHP7
 

@@ -1,4 +1,4 @@
-Nodejs + Express implementation of the CloudWalker API.
+Nodejs + Express implementation of the cloudwalker API.
 
 **Requires:** Nodejs >= 10.0.0
 

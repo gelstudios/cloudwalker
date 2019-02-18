@@ -2,7 +2,7 @@
 
 ## API Endpoints
 
-#### Get Available Shoe IDs
+### Get Available Shoe IDs
 
 Example: `curl api.iot.shoes`
 
@@ -14,7 +14,7 @@ Example: `curl api.iot.shoes`
       [4,1,3,2]
       ```
 
-#### Change Shoe Color
+### Change Shoe Color
 
 Change the color on one or more shoes.
 
