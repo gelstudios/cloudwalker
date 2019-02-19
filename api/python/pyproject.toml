@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "cloudwalker-api"
+version = "0.0.1"
+description = "API server for controlling IoT shoes"
+authors = ["Neal Gompa <ngompa13@gmail.com>"]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.6"
+Flask = "^1.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.black]
+line-length = 100
+py36 = true
+

@@ -1,0 +1,37 @@
+{
+  "name": "cloudwalker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "engines": {
+    "node": ">=10.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gelstudios/cloudwalker.git"
+  },
+  "keywords": [
+    "iot",
+    "shoes",
+    "leds"
+  ],
+  "contributors": [
+    "Eric Romano",
+    "Rebecca Mahany",
+    "John Barreiros"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gelstudios/cloudwalker/issues"
+  },
+  "homepage": "https://github.com/gelstudios/cloudwalker#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "color-string": "^1.5.3",
+    "express": "^4.16.4"
+  }
+}
