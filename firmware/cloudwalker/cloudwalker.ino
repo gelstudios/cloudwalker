@@ -1,8 +1,6 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-uint64_t chipid;
-
 // pin ID setup
 int Bpin = 15;
 int Gpin = 32;
@@ -35,7 +33,9 @@ int Rchannel = 2;
 const char* ssid = "iot";
 const char* password = "iloveiot";
 
-// HTTP polling delay
+// HTTP stuff
+String URL = "http://api.iot.shoes/checkin/";
+char mac[13];
 int pollingDelay = 500;
 
 // wifi + http client
@@ -71,6 +71,7 @@ void setup() {
   ledcAttachPin(Gpin, Gchannel);
   ledcAttachPin(Bpin, Bchannel);
 
+  setURL();
   setupWifi();
 }
 
@@ -82,20 +83,29 @@ void setupWifi() {
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
-    for (int i = 0; i <= 1; i++) {
-      blinkStatusLed();
-      blinkChannel(Rchannel);
-      delay(100);
-    }
-    tasteTheRainbow();
+    notifyNoWifi();
     delay(500);
     Serial.print(".");
   }
-
-  Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+}
+
+void notifyNoWifi(){
+  for (int i = 0; i <= 1; i++) {
+    blinkStatusLed();
+    blinkChannel(Rchannel);
+    delay(100);
+  }
+  tasteTheRainbow();
+}
+
+void setURL() {
+  uint64_t chipid=ESP.getEfuseMac();
+  sprintf(mac, "%04X%08X", (uint16_t)(chipid>>32), (uint32_t)chipid);
+  Serial.println(mac);
+  URL = String(URL + mac);
 }
 
 void loop() {
@@ -104,6 +114,7 @@ void loop() {
 
   getColorFromCloud();
 
+  // getHandler
   fadeColor();
   // if you dont like fade, use update :)
   // updateColor();
@@ -119,7 +130,7 @@ void checkWifi() {
 
 void getColorFromCloud() {
 //  if (http.connected() != true){
-      http.begin("http://api.iot.shoes/checkin/1");
+      http.begin(URL);
 //  }
   http.setReuse(true);
   http.setTimeout(500);
@@ -127,7 +138,7 @@ void getColorFromCloud() {
   http.addHeader("X-cloudwalker-vbatt", String(vbatt));
 
   int httpStatusCode = http.GET();
-  if (httpStatusCode > 0) {
+  if (httpStatusCode >= 200 && httpStatusCode < 300) {
     blinkStatusLed();
     String payload = http.getString();
     Serial.print(httpStatusCode);
