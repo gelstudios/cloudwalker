@@ -33,8 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 		'blue' => [0, 0, 255],
 		'teal' => [0, 255, 255],
 		'purple' => [255, 0, 255],
-		'white' => [255, 248, 255],
+		'white' => [255, 255, 192],
 		'orange' => [255, 16, 0],
+		'yellow' => [255, 64, 0]
 		'pink' => [255, 0, 32],
 		'none' => [0, 0, 0],
 		'off' => [0, 0, 0]
@@ -65,7 +66,7 @@ function getShoeIds(): array
 		if ($file->isDot()) {
 			continue;
 		}
-		$shoeIds[] = (int)$file->getFilename();
+		$shoeIds[] = $file->getFilename();
 	}
 
 	return $shoeIds;

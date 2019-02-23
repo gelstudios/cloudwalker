@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
+const char* VERSION = "0.5b";
+
 // pin ID setup
 int Bpin = 15;
 int Gpin = 32;
@@ -9,6 +11,7 @@ int VBAT = A13;
 
 // input voltage
 int vbatt = 0;
+const int LOW_BATT = 3400; // 3.4 volts is ~90% discharge
 
 // target colors
 int r = 0;
@@ -20,11 +23,12 @@ int currentR = 0;
 int currentG = 0;
 int currentB = 0;
 
-// LED Pulse width modulation (frequency / analog ish)
-int freq = 100;
+// LED pulse width modulation (PWM) setup
+int freq = 200;
 int resolution = 8;
 int PWM_MAX = 255; // depends on resolution
 
+// LED pwm control channels
 int Bchannel = 0;
 int Gchannel = 1;
 int Rchannel = 2;
@@ -37,6 +41,7 @@ const char* password = "iloveiot";
 String URL = "http://api.iot.shoes/checkin/";
 char mac[13];
 int pollingDelay = 500;
+String payload;
 
 // wifi + http client
 WiFiClient wifi;
@@ -46,7 +51,7 @@ const int RAINBOW = 9;
 const int rainbow[RAINBOW][3] = {
   {255,  16,   0}, // orange
   {  0, 200, 255}, // teal
-  {200,  32,   0}, // yellow
+  {255,  64,   0}, // yellow
   {  0,   0, 255}, // blue
   {255,   0,  32}, // pink
   {  0, 200,   0}, // green
@@ -71,8 +76,10 @@ void setup() {
   ledcAttachPin(Gpin, Gchannel);
   ledcAttachPin(Bpin, Bchannel);
 
+  checkBattery();
   setURL();
   setupWifi();
+  payload.reserve(128);
 }
 
 void setupWifi() {
@@ -81,43 +88,42 @@ void setupWifi() {
   Serial.println(ssid);
 
   WiFi.begin(ssid, password);
-
   while (WiFi.status() != WL_CONNECTED) {
     notifyNoWifi();
     delay(500);
     Serial.print(".");
   }
+
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 }
 
-void notifyNoWifi(){
-  for (int i = 0; i <= 1; i++) {
+void notifyNoWifi() {
+  updateTargetColor(64, 0, 0);
+  for (int i = 1; i <= 2; i++) {
     blinkStatusLed();
-    blinkChannel(Rchannel);
+    blinkCurrentColor(1, 50, 0);
     delay(100);
   }
-  tasteTheRainbow();
+  tasteTheRainbow(1000);
 }
 
 void setURL() {
-  uint64_t chipid=ESP.getEfuseMac();
-  sprintf(mac, "%04X%08X", (uint16_t)(chipid>>32), (uint32_t)chipid);
+  uint64_t chipid = ESP.getEfuseMac();
+  sprintf(mac, "%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
   Serial.println(mac);
   URL = String(URL + mac);
 }
 
 void loop() {
   checkBattery();
+
   checkWifi();
 
-  getColorFromCloud();
+  getCommandFromCloud();
 
-  // getHandler
-  fadeColor();
-  // if you dont like fade, use update :)
-  // updateColor();
+  handleCommand(payload);
 
   delay(pollingDelay);
 }
@@ -128,36 +134,22 @@ void checkWifi() {
   }
 }
 
-void getColorFromCloud() {
-//  if (http.connected() != true){
-      http.begin(URL);
-//  }
+void getCommandFromCloud() {
+  http.begin(URL);
   http.setReuse(true);
   http.setTimeout(500);
-  // report voltage on request
+  // report version, uptime, voltage on request
+  http.addHeader("X-cloudwalker-version", VERSION);
+  http.addHeader("X-cloudwalker-uptime", String(millis()));
   http.addHeader("X-cloudwalker-vbatt", String(vbatt));
 
   int httpStatusCode = http.GET();
   if (httpStatusCode >= 200 && httpStatusCode < 300) {
     blinkStatusLed();
-    String payload = http.getString();
+    payload = http.getString();
     Serial.print(httpStatusCode);
     Serial.print(": ");
     Serial.println(payload);
-
-    int requestR, requestG, requestB;
-
-    if (sscanf(payload.c_str(), "%d,%d,%d", &requestR, &requestG, &requestB) == 3) {
-      if (requestR >= 0 && requestR <= PWM_MAX) {
-        if (requestG >= 0 && requestG <= PWM_MAX) {
-          if (requestB >= 0 && requestB <= PWM_MAX) {
-            r = requestR;
-            g = requestG;
-            b = requestB;
-          }
-        }
-      }
-    }
   } else {
     http.end(); // free http client handle
     Serial.print("Error on HTTP request");
@@ -172,20 +164,88 @@ void blinkStatusLed() {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-void blinkChannel(int CHAN){
-  ledcWrite(Rchannel, 0);
-  ledcWrite(Gchannel, 0);
-  ledcWrite(Bchannel, 0);
+void blinkCurrentColor(int times, int duration, int gap) {
+  for (int i = 1; i <= times; i++) {
+    delay(gap);
+    ledcWrite(Rchannel, 0);
+    ledcWrite(Gchannel, 0);
+    ledcWrite(Bchannel, 0);
 
-  ledcWrite(CHAN, 64);
-  delay(50);
-  ledcWrite(CHAN, 0);
+    ledcWrite(Rchannel, r);
+    ledcWrite(Gchannel, g);
+    ledcWrite(Bchannel, b);
+
+    delay(duration);
+    ledcWrite(Rchannel, 0);
+    ledcWrite(Gchannel, 0);
+    ledcWrite(Bchannel, 0);
+  }
 }
 
-void updateColor() {
+void changeColor() {
   ledcWrite(Rchannel, r);
   ledcWrite(Gchannel, g);
   ledcWrite(Bchannel, b);
+}
+
+void handleCommand(String payload) {
+  int requestR, requestG, requestB;
+  char morseMsg[128];
+
+  switch (payload.charAt(0)) {
+    case 'n': { // quick change
+        if (sscanf(payload.c_str(), "%*c,%d,%d,%d", &requestR, &requestG, &requestB) == 3) {
+          updateTargetColor(requestR, requestG, requestB);
+        }
+        changeColor();
+        break;
+      }
+
+    case 'f': { // fade
+        if (sscanf(payload.c_str(), "%*c,%d,%d,%d", &requestR, &requestG, &requestB) == 3) {
+          updateTargetColor(requestR, requestG, requestB);
+        }
+        fadeColor();
+        break;
+      }
+
+    case 'r': { // rainbow
+        tasteTheRainbow(5000);
+        break;
+      }
+
+    case 'b': { // blink
+        if (sscanf(payload.c_str(), "%*c,%d,%d,%d", &requestR, &requestG, &requestB) == 3) {
+          updateTargetColor(requestR, requestG, requestB);
+        }
+        blinkCurrentColor(3, 100, 100);
+        break;
+      }
+
+    case 'm': { // morse
+        // char *fmsg = "m,..-. ..- -.-. -.- / -.-- --- ..-";
+        strncpy(morseMsg, payload.c_str()+2, (sizeof morseMsg)-1);
+        Serial.println(morseMsg);
+        // morseHandler(morseMsg);
+        break;
+      }
+
+    default: {
+        if (sscanf(payload.c_str(), "%d,%d,%d", &requestR, &requestG, &requestB) == 3) {
+          updateTargetColor(requestR, requestG, requestB);
+        }
+        fadeColor();
+        break;
+      }
+  }
+}
+
+void updateTargetColor(int R, int G, int B) {
+  if (R >= 0 && R <= PWM_MAX && G >= 0 && G <= PWM_MAX && B >= 0 && B <= PWM_MAX) {
+    r = R;
+    g = G;
+    b = B;
+  }
 }
 
 void fadeColor() {
@@ -195,7 +255,7 @@ void fadeColor() {
     Serial.print(currentR);
 
     Serial.print("\t");
-    
+
     Serial.print(g);
     Serial.print(" ");
     Serial.print(currentG);
@@ -224,17 +284,28 @@ void stepTo(int CHAN, int &current, int target) {
   current += v;
 }
 
-void tasteTheRainbow() {
+void tasteTheRainbow(int duration) {
+  duration = duration / RAINBOW;
   for (int i = 0; i <= RAINBOW - 1; i++) {
-    r = rainbow[i][0];
-    g = rainbow[i][1];
-    b = rainbow[i][2];
+    updateTargetColor(rainbow[i][0], rainbow[i][1], rainbow[i][2]); // R G B
     fadeColor();
-    delay(2000);
+    delay(duration);
   }
 }
 
-void checkBattery(){
+void checkBattery() {
   vbatt = analogRead(VBAT) * 2;
+  if (vbatt <= LOW_BATT) {
+    updateTargetColor(64, 0, 0);
+    for (int i = 0; i <= 10; i++) {
+      blinkStatusLed();
+      blinkCurrentColor(1, 100, 0);
+      delay(100);
+    }
+    WiFi.mode(WIFI_MODE_NULL);
+    btStop();
+    esp_deep_sleep_start();
+  }
+  Serial.print("battery: ");
   Serial.println(vbatt);
 }
