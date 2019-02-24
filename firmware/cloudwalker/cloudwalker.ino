@@ -18,11 +18,6 @@ int r = 0;
 int g = 0;
 int b = 0;
 
-// current colors
-int currentR = 0;
-int currentG = 0;
-int currentB = 0;
-
 // LED pulse width modulation (PWM) setup
 int freq = 200;
 int resolution = 8;
@@ -249,6 +244,10 @@ void updateTargetColor(int R, int G, int B) {
 }
 
 void fadeColor() {
+  int currentR = ledcRead(Rchannel);
+  int currentG = ledcRead(Gchannel);
+  int currentB = ledcRead(Bchannel);
+
   while (r != currentR || g != currentG || b != currentB) {
     Serial.print(r);
     Serial.print(" ");
@@ -273,13 +272,18 @@ void fadeColor() {
 }
 
 void stepTo(int CHAN, int &current, int target) {
+  if (current == target) {
+    return;
+  }
+
   int v = 0;
   if (current > target) {
     v = -1;
   }
   if (current < target) {
-    v = +1;
+    v = 1;
   }
+
   ledcWrite(CHAN, current + v);
   current += v;
 }
