@@ -11,13 +11,13 @@ Flask = "^1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
-black = {version = "^18.3-alpha.0",allows-prereleases = true}
+black = {version = "^18.3-alpha.0",allow-prereleases = true}
 
 [tool.black]
 line-length = 100
 py36 = true
 
 [build-system]
-requires = ["poetry>=0.12"]
+requires = ["poetry>=1.0.0"]
 build-backend = "poetry.masonry.api"
 
