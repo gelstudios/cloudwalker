@@ -32,6 +32,6 @@
   "dependencies": {
     "body-parser": "^1.18.3",
     "color-string": "^1.5.3",
-    "express": "^4.16.4"
+    "express": "^4.17.3"
   }
 }
